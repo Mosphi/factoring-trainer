@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>因数分解トレーナー v3</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card2: #334155;
+    --accent: #38bdf8;
+    --accent2: #f472b6;
+    --good: #4ade80;
+    --bad: #f87171;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --gold: #fde047;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 16px;
+  }
+  .app {
+    width: 100%;
+    max-width: 620px;
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  h1 {
+    margin: 0 0 6px;
+    font-size: 22px;
+    text-align: center;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle { text-align: center; color: var(--muted); font-size: 12px; margin-bottom: 16px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* === setup screen === */
+  .setup-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--card2);
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    gap: 12px;
+  }
+  .setup-row label { font-weight: 600; white-space: nowrap; }
+  .setup-row input[type=text] {
+    background: #0f172a;
+    border: 1px solid #475569;
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    flex: 1;
+    min-width: 100px;
+  }
+  .count-control { display: flex; align-items: center; gap: 10px; }
+  .count-control input[type=range] { width: 180px; }
+  .count-display {
+    background: var(--accent);
+    color: #0f172a;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 6px;
+    min-width: 48px;
+    text-align: center;
+  }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+  .toggle input { accent-color: var(--accent); width: 18px; height: 18px; }
+
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    margin-top: 14px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    color: #0f172a;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn.secondary { background: var(--card2); color: var(--text); }
+
+  /* === history === */
+  .history-block { background: var(--card2); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+  .history-title {
+    font-size: 13px; font-weight: 700; color: var(--muted);
+    margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .history-clear {
+    background: none; border: 1px solid #475569; color: var(--muted);
+    padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;
+  }
+  .history-row {
+    display: grid;
+    grid-template-columns: 16px 1fr auto auto auto;
+    gap: 8px;
+    align-items: center;
+    padding: 5px 0;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .history-row:last-child { border-bottom: none; }
+  .history-row .rk { color: var(--gold); font-weight: 700; }
+  .history-row .meta { color: var(--muted); font-size: 11px; }
+  .history-row .time { font-family: 'Courier New', monospace; font-weight: 700; }
+  .history-row .acc { color: var(--good); font-family: 'Courier New', monospace; }
+  .history-row.empty { color: var(--muted); font-style: italic; grid-template-columns: 1fr; }
+
+  /* === quiz screen === */
+  .rec-header {
+    display: none;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid rgba(248, 113, 113, 0.4);
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+  .rec-header.on { display: flex; }
+  .rec-header .rec-dot {
+    width: 10px; height: 10px;
+    background: var(--bad);
+    border-radius: 50%;
+    margin-right: 8px;
+    animation: pulse 1.2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+  .status-bar {
+    display: flex; justify-content: space-between; font-size: 14px;
+    color: var(--muted); margin-bottom: 10px;
+  }
+  .progress { height: 6px; background: var(--card2); border-radius: 3px; overflow: hidden; margin-bottom: 16px; }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    width: 0%;
+    transition: width 0.3s;
+  }
+  .question-box {
+    background: var(--card2);
+    padding: 18px;
+    border-radius: 12px;
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .question-text { font-size: 15px; color: var(--muted); margin-bottom: 6px; }
+  .question-values { font-size: 22px; font-weight: 700; }
+  .question-values .num { color: var(--accent); font-family: 'Courier New', monospace; }
+
+  .answer-display { display: flex; justify-content: center; gap: 12px; margin-bottom: 14px; }
+  .answer-slot {
+    width: 90px;
+    height: 58px;
+    background: var(--card2);
+    border: 2px dashed var(--muted);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    cursor: pointer;
+    position: relative;
+  }
+  .answer-slot.filled { border-style: solid; border-color: var(--accent); color: var(--accent); }
+  .answer-slot.active { border-color: var(--accent2); box-shadow: 0 0 0 3px rgba(244, 114, 182, 0.3); }
+  /* 「次は負」モード表示 */
+  .answer-slot.neg-pending::after {
+    content: "−";
+    position: absolute;
+    top: 4px; left: 8px;
+    font-size: 14px;
+    color: var(--bad);
+    background: rgba(248,113,113,0.2);
+    padding: 0 6px;
+    border-radius: 4px;
+    font-weight: 700;
+  }
+
+  /* === 電卓配列 === */
+  .calc-pad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .calc-pad button {
+    padding: 16px 0;
+    background: var(--card2);
+    color: var(--text);
+    border: none;
+    border-radius: 10px;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    transition: background 0.1s;
+  }
+  .calc-pad button:hover { background: #475569; }
+  .calc-pad button:active { transform: scale(0.95); }
+  .calc-pad button.sign {
+    background: #5b3b5b;
+    color: var(--accent2);
+  }
+  .calc-pad button.sign.armed {
+    background: var(--bad);
+    color: white;
+    animation: armpulse 0.8s infinite alternate;
+  }
+  @keyframes armpulse {
+    from { box-shadow: 0 0 0 0 rgba(248,113,113,0.5); }
+    to   { box-shadow: 0 0 0 4px rgba(248,113,113,0.0); }
+  }
+  .calc-pad button.back {
+    background: #3b4b5b;
+    color: var(--muted);
+  }
+
+  .pad-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 320px; margin: 0 auto; }
+  .pad-actions button { padding: 12px; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .btn-clear { background: var(--card2); color: var(--muted); }
+  .btn-submit { background: linear-gradient(90deg, var(--accent), var(--accent2)); color: #0f172a; }
+  .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* === result screen === */
+  .result-card {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(244, 114, 182, 0.12));
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .result-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12px; color: var(--muted); margin-bottom: 6px;
+  }
+  .result-head .name { color: var(--text); font-weight: 600; font-size: 14px; }
+  .rank-title {
+    font-size: 40px; font-weight: 800; text-align: center; margin: 4px 0;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1.1;
+  }
+  .rank-title.kami {
+    background: linear-gradient(90deg, #fde047, #f472b6, #38bdf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shine 2s linear infinite;
+    background-size: 200% auto;
+  }
+  @keyframes shine { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+  .rank-comment { text-align: center; color: var(--muted); font-size: 13px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; }
+  .stat { background: rgba(15, 23, 42, 0.5); padding: 8px 6px; border-radius: 8px; text-align: center; }
+  .stat-label { font-size: 10px; color: var(--muted); }
+  .stat-value { font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+  .review-wrap { background: var(--card2); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+  .review-title {
+    font-size: 13px; font-weight: 700; color: var(--muted);
+    margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .review-toggle {
+    background: none; border: 1px solid #475569; color: var(--muted);
+    padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;
+  }
+  .review-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 4px;
+  }
+  .review-cell {
+    background: rgba(15,23,42,0.5);
+    border-radius: 6px;
+    padding: 4px 6px;
+    font-size: 11px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .review-cell .mk {
+    width: 18px; height: 18px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 11px; flex-shrink: 0;
+  }
+  .review-cell .mk.ok { background: rgba(74,222,128,0.2); color: var(--good); }
+  .review-cell .mk.ng { background: rgba(248,113,113,0.2); color: var(--bad); }
+  .review-cell .qs { font-family: 'Courier New', monospace; font-size: 10px; color: var(--muted); line-height: 1.2; }
+
+  .review-detail { display: none; max-height: 260px; overflow-y: auto; }
+  .review-detail.on { display: block; }
+  .review-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px;
+  }
+  .review-item:last-child { border-bottom: none; }
+  .review-q { flex: 1; font-family: 'Courier New', monospace; }
+  .review-ans { color: var(--muted); font-family: 'Courier New', monospace; }
+  .review-ans .user { color: var(--bad); text-decoration: line-through; margin-right: 6px; }
+  .review-ans .cv { color: var(--good); }
+
+  .buttons-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .buttons-row .btn { margin-top: 0; }
+
+  .warn {
+    background: rgba(253, 224, 71, 0.12);
+    border: 1px solid rgba(253, 224, 71, 0.4);
+    color: var(--gold);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    margin-bottom: 10px;
+    display: none;
+  }
+  .warn.on { display: block; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>因数分解トレーナー</h1>
+  <div class="subtitle">和と積から2つの整数を当てよ — v3</div>
+
+  <!-- ========== SETUP SCREEN ========== -->
+  <div id="screen-setup" class="screen active">
+    <div class="setup-row">
+      <label>氏名</label>
+      <input type="text" id="player-name" placeholder="（任意・提出記録用）" maxlength="20">
+    </div>
+    <div class="setup-row">
+      <label>出題数</label>
+      <div class="count-control">
+        <input id="count-slider" type="range" min="1" max="30" value="10">
+        <div class="count-display" id="count-display">10</div>
+      </div>
+    </div>
+    <div class="setup-row">
+      <label class="toggle">
+        <input type="checkbox" id="rec-mode">
+        <span>🔴 画面収録モード（氏名・日時をヘッダー表示）</span>
+      </label>
+    </div>
+
+    <div class="history-block">
+      <div class="history-title"><span>📊 直近の記録</span></div>
+      <div id="recent-list"></div>
+    </div>
+    <div class="history-block">
+      <div class="history-title">
+        <span>🏆 ベストタイム</span>
+        <button class="history-clear" id="clear-history">履歴を消去</button>
+      </div>
+      <div id="best-list"></div>
+    </div>
+
+    <button class="btn" id="start-btn">スタート</button>
+  </div>
+
+  <!-- ========== QUIZ SCREEN ========== -->
+  <div id="screen-quiz" class="screen">
+    <div class="rec-header" id="rec-header">
+      <div><span class="rec-dot"></span><span id="rec-name">—</span></div>
+      <div id="rec-date">—</div>
+    </div>
+    <div class="status-bar">
+      <span id="progress-text">1 / 10</span>
+      <span id="timer-text">⏱ 00:00</span>
+    </div>
+    <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
+    <div class="question-box">
+      <div class="question-text">和が <span class="num" id="q-sum">5</span>、積が <span class="num" id="q-prod">6</span> となる2つの整数は？</div>
+    </div>
+    <div class="answer-display">
+      <div class="answer-slot active" id="slot-0"></div>
+      <div class="answer-slot" id="slot-1"></div>
+    </div>
+
+    <!-- 電卓配列パッド -->
+    <div class="calc-pad" id="numpad">
+      <button data-d="7">7</button><button data-d="8">8</button><button data-d="9">9</button>
+      <button data-d="4">4</button><button data-d="5">5</button><button data-d="6">6</button>
+      <button data-d="1">1</button><button data-d="2">2</button><button data-d="3">3</button>
+      <button class="sign" id="sign-btn">±</button>
+      <button data-d="0">0</button>
+      <button class="back" id="back-btn">⌫</button>
+    </div>
+
+    <div class="warn" id="range-warn">範囲外（−9〜+9）の数字は入力できません。</div>
+
+    <div class="pad-actions">
+      <button class="btn-clear" id="clear-btn">クリア</button>
+      <button class="btn-submit" id="submit-btn" disabled>決定</button>
+    </div>
+  </div>
+
+  <!-- ========== RESULT SCREEN ========== -->
+  <div id="screen-result" class="screen">
+    <div class="result-card">
+      <div class="result-head">
+        <span class="name" id="r-name">—</span>
+        <span id="r-date">—</span>
+      </div>
+      <div class="rank-title" id="rank-title">免許皆伝</div>
+      <div class="rank-comment" id="rank-comment">お見事！</div>
+      <div class="stats">
+        <div class="stat"><div class="stat-label">正答率</div><div class="stat-value" id="stat-accuracy">100%</div></div>
+        <div class="stat"><div class="stat-label">合計時間</div><div class="stat-value" id="stat-time">00:00</div></div>
+        <div class="stat"><div class="stat-label">1問平均</div><div class="stat-value" id="stat-avg">0.0秒</div></div>
+        <div class="stat"><div class="stat-label">出題数</div><div class="stat-value" id="stat-total">10</div></div>
+      </div>
+    </div>
+
+    <div class="review-wrap">
+      <div class="review-title">
+        <span>正誤表</span>
+        <button class="review-toggle" id="review-toggle">詳細表示</button>
+      </div>
+      <div class="review-grid" id="review-grid"></div>
+      <div class="review-detail" id="review-detail"></div>
+    </div>
+
+    <div class="buttons-row">
+      <button class="btn secondary" id="retry-btn">もう一度</button>
+      <button class="btn" id="home-btn">設定に戻る</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+ * 評価基準（AND条件・上から順に判定）
+ * ============================================================ */
+const RANKS = [
+  { name: "神",       comment: "神業の閃き！",         maxTimePerQ: 2.0,      minAcc: 0.95, cls: "kami" },
+  { name: "免許皆伝", comment: "達人の域！",           maxTimePerQ: 3.0,      minAcc: 0.90 },
+  { name: "師範",     comment: "熟練の腕前！",         maxTimePerQ: 3.5,      minAcc: 0.90 },
+  { name: "上級",     comment: "かなりの実力！",       maxTimePerQ: 4.0,      minAcc: 0.90 },
+  { name: "中級",     comment: "いい調子！",           maxTimePerQ: 6.0,      minAcc: 0.80 },
+  { name: "初級",     comment: "基礎はOK。",           maxTimePerQ: 10.0,     minAcc: 0.70 },
+  { name: "要修行",   comment: "反復あるのみ！",       maxTimePerQ: Infinity, minAcc: 0 },
+];
+function evaluate(acc, tpq) {
+  for (const r of RANKS) if (acc >= r.minAcc && tpq <= r.maxTimePerQ) return r;
+  return RANKS[RANKS.length - 1];
+}
+
+/* ============================================================
+ * 出題生成
+ *   範囲 -9〜+9 の整数2個の組
+ *   和=0 は 50%, 積=0 は 20% に採択率を下げる
+ *   同一出題（sum,prod が同じ）は重複させない
+ * ============================================================ */
+const ACCEPT_SUM_ZERO  = 0.50;
+const ACCEPT_PROD_ZERO = 0.20;
+function generateQuestion() {
+  while (true) {
+    const a = Math.floor(Math.random() * 19) - 9;
+    const b = Math.floor(Math.random() * 19) - 9;
+    const sum = a + b, prod = a * b;
+    if (prod === 0 && Math.random() > ACCEPT_PROD_ZERO) continue;
+    if (sum === 0  && Math.random() > ACCEPT_SUM_ZERO)  continue;
+    return { sum, prod, answers: [a, b] };
+  }
+}
+function generateQuestions(n) {
+  // (sum,prod) で重複を排除。上限190問分の空間なので30問程度なら余裕。
+  const used = new Set();
+  const arr = [];
+  let tries = 0;
+  const MAX_TRIES = 20000;
+  while (arr.length < n && tries < MAX_TRIES) {
+    const q = generateQuestion();
+    const key = `${q.sum}|${q.prod}`;
+    if (!used.has(key)) {
+      used.add(key);
+      arr.push(q);
+    }
+    tries++;
+  }
+  return arr;
+}
+
+/* ============================================================
+ * 履歴（localStorage）
+ * ============================================================ */
+const HISTORY_KEY = 'factoring-trainer-history-v3';
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+}
+function saveHistory(arr) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(arr)); } catch(e) {}
+}
+function addHistory(entry) {
+  const h = loadHistory(); h.unshift(entry);
+  if (h.length > 100) h.length = 100;
+  saveHistory(h);
+}
+function clearHistoryStorage() { try { localStorage.removeItem(HISTORY_KEY); } catch(e) {} }
+
+function renderHistory() {
+  const h = loadHistory();
+  // 直近3回：すべての記録から最新3件
+  const recent = h.slice(0, 3);
+  const recentEl = document.getElementById('recent-list');
+  recentEl.innerHTML = recent.length
+    ? recent.map(e => renderRow(e)).join('')
+    : '<div class="history-row empty">まだ記録がありません。</div>';
+
+  // ベストタイム3件：正答率の条件なし、1問平均タイムが短い順で3件
+  const best = [...h].sort((a,b) => a.avg - b.avg).slice(0, 3);
+  const bestEl = document.getElementById('best-list');
+  bestEl.innerHTML = best.length
+    ? best.map(e => renderRow(e, true)).join('')
+    : '<div class="history-row empty">まだ記録がありません。</div>';
+}
+function renderRow(e, showAvg = false) {
+  const date = new Date(e.at);
+  const dateStr = `${date.getMonth()+1}/${date.getDate()} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+  const accPct = Math.round(e.accuracy * 100);
+  const main = showAvg
+    ? `<span class="time">${e.avg.toFixed(2)}秒/問</span>`
+    : `<span class="time">${formatSecs(e.totalSec)}</span>`;
+  const sub = showAvg
+    ? `<span class="meta">${formatSecs(e.totalSec)}</span>`
+    : `<span class="meta">${e.avg.toFixed(1)}秒/問</span>`;
+  return `
+    <div class="history-row">
+      <span class="rk">${rankIcon(e.rank)}</span>
+      <span>${escapeHtml(e.name || '名無し')}・${e.total}問 <span class="meta">${dateStr}</span></span>
+      <span class="acc">${accPct}%</span>
+      ${main}
+      ${sub}
+    </div>`;
+}
+function rankIcon(rank) {
+  return { '神':'👑','免許皆伝':'🥇','師範':'🥈','上級':'🥉','中級':'⭐','初級':'🔰','要修行':'📘' }[rank] || '・';
+}
+function formatSecs(sec) {
+  const s = Math.round(sec);
+  return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+}
+function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ============================================================
+ * 状態
+ * ============================================================ */
+const state = {
+  total: 10, current: 0,
+  questions: [], userAnswers: [],
+  inputSlots: [null, null], activeSlot: 0,
+  lastEntered: null,         // ← 直近で数字を入力したスロット
+  negPending: false,         // ← 何も入力前に±を押した時のみ「次入力を負」モード
+  startTime: 0, elapsedMs: 0, timerId: null,
+  name: '', recMode: false, startedAt: null,
+};
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* ============================================================
+ * 入力ロジック（電卓配列 + ±トグル）
+ *   数字キー : 押したスロットに正の値を入れ、相手スロットが空なら自動移動
+ *             negPending がオンなら負の値として入れて消費
+ *   ±       : アクティブスロットに値があればその符号を反転
+ *             空なら "次の数字を負にする" モードをトグル
+ *   ⌫      : アクティブスロットをクリア
+ * ============================================================ */
+function setNegPendingVisual() {
+  for (let i = 0; i < 2; i++) {
+    const el = document.getElementById(`slot-${i}`);
+    // 埋まっているスロットには negPending の "−" マークを出さない（視覚的な混乱防止）
+    const show = i === state.activeSlot && state.negPending && state.inputSlots[i] === null;
+    el.classList.toggle('neg-pending', show);
+  }
+  document.getElementById('sign-btn').classList.toggle('armed', state.negPending);
+}
+function updateSlots() {
+  for (let i = 0; i < 2; i++) {
+    const el = document.getElementById(`slot-${i}`);
+    const val = state.inputSlots[i];
+    el.textContent = val === null ? '' : (val > 0 ? `+${val}` : `${val}`);
+    el.classList.toggle('filled', val !== null);
+    el.classList.toggle('active', i === state.activeSlot);
+  }
+  setNegPendingVisual();
+  hideRangeWarn();
+}
+function updateSubmitEnabled() {
+  document.getElementById('submit-btn').disabled =
+    state.inputSlots[0] === null || state.inputSlots[1] === null;
+}
+
+function enterDigit(d) {
+  // d は 0〜9。negPending が立っていれば負として入れて消費
+  let v = d;
+  if (state.negPending) { v = -v; state.negPending = false; }
+  if (v < -9 || v > 9) { showRangeWarn(); return; }
+  state.inputSlots[state.activeSlot] = v;
+  state.lastEntered = state.activeSlot;
+  // 相手スロットが空なら自動で移動（両方埋まっていれば据え置き）
+  const other = 1 - state.activeSlot;
+  if (state.inputSlots[other] === null) state.activeSlot = other;
+  updateSlots();
+  updateSubmitEnabled();
+}
+/**
+ * ±の動作（シンプルに2通り）
+ *   A. アクティブスロットに値がある → その符号を反転（0は無視）
+ *   B. アクティブスロットが空         → 「次に入れる数字を負にする」モード(negPending)をトグル
+ *
+ * 入力済みの反対スロットには関与しない（そちらを反転したい時は直接タップして選択してから±を押す）。
+ */
+function toggleSign() {
+  const a = state.activeSlot;
+  if (state.inputSlots[a] !== null) {
+    if (state.inputSlots[a] !== 0) state.inputSlots[a] = -state.inputSlots[a];
+    updateSlots();
+    return;
+  }
+  state.negPending = !state.negPending;
+  updateSlots();
+}
+function backspace() {
+  if (state.negPending) {
+    state.negPending = false;
+  } else if (state.inputSlots[state.activeSlot] !== null) {
+    state.inputSlots[state.activeSlot] = null;
+    if (state.lastEntered === state.activeSlot) state.lastEntered = null;
+  } else {
+    // アクティブ空 → 相手スロットに値があればそれをクリアしてそちらへ
+    const other = 1 - state.activeSlot;
+    if (state.inputSlots[other] !== null) {
+      state.inputSlots[other] = null;
+      state.activeSlot = other;
+      if (state.lastEntered === other) state.lastEntered = null;
+    }
+  }
+  updateSlots();
+  updateSubmitEnabled();
+}
+function clearSlots() {
+  state.inputSlots = [null, null];
+  state.activeSlot = 0;
+  state.lastEntered = null;
+  state.negPending = false;
+  updateSlots();
+  updateSubmitEnabled();
+}
+
+function showRangeWarn() { document.getElementById('range-warn').classList.add('on'); }
+function hideRangeWarn() { document.getElementById('range-warn').classList.remove('on'); }
+
+/* ============================================================
+ * ボタン結線
+ * ============================================================ */
+document.querySelectorAll('.calc-pad button[data-d]').forEach(btn => {
+  btn.addEventListener('click', () => enterDigit(parseInt(btn.dataset.d, 10)));
+});
+document.getElementById('sign-btn').addEventListener('click', toggleSign);
+document.getElementById('back-btn').addEventListener('click', backspace);
+document.getElementById('slot-0').addEventListener('click', () => {
+  state.activeSlot = 0;
+  if (state.inputSlots[0] !== null) {
+    state.lastEntered = 0;
+    state.negPending = false; // 埋まったスロットに移った時は arm を解除
+  }
+  updateSlots();
+});
+document.getElementById('slot-1').addEventListener('click', () => {
+  state.activeSlot = 1;
+  if (state.inputSlots[1] !== null) {
+    state.lastEntered = 1;
+    state.negPending = false;
+  }
+  updateSlots();
+});
+
+/* ============================================================
+ * タイマー・進行
+ * ============================================================ */
+function startTimer() {
+  state.startTime = Date.now();
+  state.timerId = setInterval(() => {
+    state.elapsedMs = Date.now() - state.startTime;
+    document.getElementById('timer-text').textContent = `⏱ ${formatSecs(Math.floor(state.elapsedMs / 1000))}`;
+  }, 200);
+}
+function stopTimer() { clearInterval(state.timerId); state.elapsedMs = Date.now() - state.startTime; }
+
+function loadQuestion() {
+  const q = state.questions[state.current];
+  document.getElementById('q-sum').textContent = q.sum;
+  document.getElementById('q-prod').textContent = q.prod;
+  document.getElementById('progress-text').textContent = `${state.current + 1} / ${state.total}`;
+  document.getElementById('progress-bar').style.width = `${(state.current / state.total) * 100}%`;
+  clearSlots();
+}
+function submitAnswer() {
+  const [u1, u2] = state.inputSlots;
+  state.userAnswers.push([u1, u2]);
+  state.current++;
+  if (state.current >= state.total) finishQuiz();
+  else loadQuestion();
+}
+function isCorrect(userPair, answerPair) {
+  const [u1, u2] = userPair, [a1, a2] = answerPair;
+  return (u1 === a1 && u2 === a2) || (u1 === a2 && u2 === a1);
+}
+
+/* ============================================================
+ * 結果
+ * ============================================================ */
+function finishQuiz() {
+  stopTimer();
+  const total = state.total;
+  let correct = 0;
+  state.questions.forEach((q, i) => { if (isCorrect(state.userAnswers[i], q.answers)) correct++; });
+  const accuracy = correct / total;
+  const seconds = state.elapsedMs / 1000;
+  const avg = seconds / total;
+  const rank = evaluate(accuracy, avg);
+
+  const titleEl = document.getElementById('rank-title');
+  titleEl.textContent = rank.name;
+  titleEl.className = 'rank-title' + (rank.cls ? ' ' + rank.cls : '');
+  document.getElementById('rank-comment').textContent = rank.comment;
+
+  document.getElementById('stat-accuracy').textContent = `${Math.round(accuracy * 100)}%`;
+  document.getElementById('stat-time').textContent = formatSecs(seconds);
+  document.getElementById('stat-avg').textContent = `${avg.toFixed(2)}秒`;
+  document.getElementById('stat-total').textContent = `${total}問`;
+
+  const dt = state.startedAt || new Date();
+  const dtStr = `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('r-name').textContent = state.name || '（氏名未入力）';
+  document.getElementById('r-date').textContent = dtStr;
+
+  const grid = document.getElementById('review-grid');
+  grid.innerHTML = '';
+  state.questions.forEach((q, i) => {
+    const ok = isCorrect(state.userAnswers[i], q.answers);
+    const cell = document.createElement('div');
+    cell.className = 'review-cell';
+    cell.innerHTML = `<span class="mk ${ok ? 'ok' : 'ng'}">${ok ? '○' : '×'}</span>
+      <span class="qs">${i+1}. 和${q.sum} 積${q.prod}</span>`;
+    grid.appendChild(cell);
+  });
+
+  const detail = document.getElementById('review-detail');
+  detail.innerHTML = '';
+  const fmt = v => v === null ? '?' : (v > 0 ? `+${v}` : `${v}`);
+  state.questions.forEach((q, i) => {
+    const ua = state.userAnswers[i];
+    const ok = isCorrect(ua, q.answers);
+    const item = document.createElement('div');
+    item.className = 'review-item';
+    item.innerHTML = `
+      <div><span style="color:${ok?'var(--good)':'var(--bad)'};font-weight:700;">${ok?'○':'×'}</span> Q${i+1}</div>
+      <div class="review-q">和${q.sum} / 積${q.prod}</div>
+      <div class="review-ans">
+        ${ok ? '' : `<span class="user">${fmt(ua[0])}, ${fmt(ua[1])}</span>`}
+        <span class="cv">${fmt(q.answers[0])}, ${fmt(q.answers[1])}</span>
+      </div>`;
+    detail.appendChild(item);
+  });
+
+  addHistory({ at: Date.now(), name: state.name, total, correct, accuracy, totalSec: seconds, avg, rank: rank.name });
+  renderHistory();
+  showScreen('screen-result');
+}
+
+/* ============================================================
+ * 設定 / ライフサイクル
+ * ============================================================ */
+document.getElementById('count-slider').addEventListener('input', e => {
+  document.getElementById('count-display').textContent = e.target.value;
+});
+document.getElementById('start-btn').addEventListener('click', () => {
+  state.total   = parseInt(document.getElementById('count-slider').value, 10);
+  state.current = 0;
+  state.userAnswers = [];
+  state.name    = document.getElementById('player-name').value.trim();
+  state.recMode = document.getElementById('rec-mode').checked;
+  state.startedAt = new Date();
+  state.questions = generateQuestions(state.total);
+
+  const rh = document.getElementById('rec-header');
+  if (state.recMode) {
+    rh.classList.add('on');
+    const dt = state.startedAt;
+    document.getElementById('rec-name').textContent = state.name || '（氏名未入力）';
+    document.getElementById('rec-date').textContent =
+      `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+  } else { rh.classList.remove('on'); }
+
+  loadQuestion(); showScreen('screen-quiz'); startTimer();
+});
+document.getElementById('clear-btn').addEventListener('click', clearSlots);
+document.getElementById('submit-btn').addEventListener('click', submitAnswer);
+document.getElementById('retry-btn').addEventListener('click', () => {
+  state.current = 0;
+  state.userAnswers = [];
+  state.startedAt = new Date();
+  state.questions = generateQuestions(state.total);
+  if (state.recMode) {
+    const dt = state.startedAt;
+    document.getElementById('rec-date').textContent =
+      `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+  }
+  loadQuestion(); showScreen('screen-quiz'); startTimer();
+});
+document.getElementById('home-btn').addEventListener('click', () => showScreen('screen-setup'));
+document.getElementById('clear-history').addEventListener('click', () => {
+  if (confirm('履歴をすべて消去しますか？')) { clearHistoryStorage(); renderHistory(); }
+});
+document.getElementById('review-toggle').addEventListener('click', () => {
+  const d = document.getElementById('review-detail');
+  const g = document.getElementById('review-grid');
+  const b = document.getElementById('review-toggle');
+  const on = d.classList.toggle('on');
+  g.style.display = on ? 'none' : 'grid';
+  b.textContent = on ? 'コンパクト表示' : '詳細表示';
+});
+
+/* キーボード */
+document.addEventListener('keydown', e => {
+  const quiz = document.getElementById('screen-quiz').classList.contains('active');
+  if (!quiz) return;
+  if (e.key === 'Enter') { if (!document.getElementById('submit-btn').disabled) submitAnswer(); return; }
+  if (e.key === 'Escape') { clearSlots(); return; }
+  if (e.key === 'Backspace') { backspace(); return; }
+  if (e.key === 'Tab') { e.preventDefault(); state.activeSlot = (state.activeSlot + 1) % 2; updateSlots(); return; }
+  if (e.key === '-' || e.key === '_') { toggleSign(); return; }
+  if (/^[0-9]$/.test(e.key)) { enterDigit(parseInt(e.key, 10)); }
+});
+
+renderHistory();
+</script>
+</body>
+</html>
